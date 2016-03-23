@@ -1,0 +1,28 @@
+Mandel de base:
+
+gcc src/mandel.c -o build/mandel -lm
+./mandel
+
+Mandel mpi static
+
+mpicc src/mandel_mpi.c -o build/mandel_mpi -lm
+mpirun -n 2 -hostfile hosts build/mandel_mpi
+
+Mandel mpi dynamique
+
+mpicc src/mandel_mpi_d.c -fopenmp -o build/mandel_mpi_d -lm
+mpirun -n 2 -hostfile hosts build/mandel_mpi_d
+
+
+Convolution :
+
+
+de base :
+gcc src/convol.c -o build/convol -lm
+./convol images/1.ras 3 1 
+
+
+mpicc src/convolution.c -fopenmp -o build/convolution -lm
+mpirun -n 27 -hostfile hosts build/convolution images/1.ras 3 1
+
+

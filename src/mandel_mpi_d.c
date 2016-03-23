@@ -336,7 +336,7 @@ int main(int argc, char *argv[]) {
           //fprintf(stdout, "%g\n", fin - debut);
 
           /* Sauvegarde de la grille dans le fichier resultat "mandel.ras" */
-          sauver_rasterfile("../output/mandel2.ras", w, h, ima);
+          sauver_rasterfile("output/mandel2.ras", w, h, ima);
         }
       }
     }

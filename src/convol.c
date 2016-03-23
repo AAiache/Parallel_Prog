@@ -1,19 +1,16 @@
 /*
- * Programmation ParallÃ¨le - Mars 2016
+ * Programmation Parallèle - Mars 2016
  * ENSG / IGN 
  * by Ahmad AUDI 
  * Calcul de convolution sur une image.
  */
 
-#define TAG_DATA 2
-#define MAITRE 0
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>   /* pour le rint */
 #include <string.h> /* pour le memcpy */
 #include <time.h>   /* chronometrage */
-#include <mpi.h>
 
 #include "rasterfile.h"
 
@@ -21,11 +18,11 @@
 
 /** 
  * \struct Raster
- * Structure dÃ©crivant une image au format Sun Raster
+ * Structure décrivant une image au format Sun Raster
  */
 
 typedef struct {
-  struct rasterfile file;  ///< EntÃªte image Sun Raster
+  struct rasterfile file;  ///< Entête image Sun Raster
   unsigned char rouge[256],vert[256],bleu[256];  ///< Palette de couleur
   unsigned char *data;    ///< Pointeur vers l'image
 } Raster;
@@ -45,7 +42,7 @@ double my_gettimeofday(){
 /**
  * Cette procedure convertit un entier LINUX en un entier SUN 
  *
- * \param i pointeur vers l'entier Ã  convertir
+ * \param i pointeur vers l'entier à convertir
  */
 
 void swap(int *i) {
@@ -62,15 +59,15 @@ void swap(int *i) {
  * \brief Lecture d'une image au format Sun RASTERFILE.
  *
  * Au retour de cette fonction, la structure r est remplie
- * avec les donnÃ©es liÃ©e Ã  l'image. Le champ r.file contient
+ * avec les données liée à l'image. Le champ r.file contient
  * les informations de l'entete de l'image (dimension, codage, etc).
- * Le champ r.data est un pointeur, allouÃ© par la fonction
+ * Le champ r.data est un pointeur, alloué par la fonction
  * lire_rasterfile() et qui contient l'image. Cette espace doit
- * Ãªtre libÃ©rÃ© aprÃ¨s usage.
+ * être libéré après usage.
  *
  * \param nom nom du fichier image
  * \param r structure Raster qui contient l'image
- *  chargÃ©e en mÃ©moire
+ *  chargée en mémoire
  */
 
 void lire_rasterfile(char *nom, Raster *r) {
@@ -145,10 +142,10 @@ void sauve_rasterfile(char *nom, Raster *r)     {
 }
 
 /**
- * RÃ©alise une division d'entiers plus prÃ©cise que
- * l'opÃ©rateur '/'.
+ * Réalise une division d'entiers plus précise que
+ * l'opérateur '/'.
  * Remarque : la fonction rint provient de la librairie 
- * mathÃ©matique.
+ * mathématique.
  */
 
 unsigned char division(int numerateur,int denominateur) {
@@ -169,11 +166,11 @@ typedef enum {
   CONVOL_MOYENNE2, ///< Filtre moyenneur central
   CONVOL_CONTOUR1, ///< Laplacien
   CONVOL_CONTOUR2, ///< Max gradient
-  CONVOL_MEDIAN    ///< Filtre mÃ©dian
+  CONVOL_MEDIAN    ///< Filtre médian
 } filtre_t;
 
 /**
- * RÃ©alise une opÃ©ration de convolution avec un noyau prÃ©dÃ©fini sur
+ * Réalise une opération de convolution avec un noyau prédéfini sur
  * un point.
  *
  * \param choix type de noyau pour la convolution :
@@ -181,11 +178,11 @@ typedef enum {
  *  - CONVOL_MOYENNE2 : filtre moyenneur avec un poid central plus fort
  *  - CONVOL_CONTOUR1 : filtre extracteur de contours (laplacien)
  *  - CONVOL_CONTOUR2 : filtre extracteur de contours (max des composantes du gradient)
- *  - CONVOL_MEDIAN : filtre mÃ©dian (les 9 valeurs sont triÃ©es et la valeur
- *     mÃ©diane est retournÃ©e).
+ *  - CONVOL_MEDIAN : filtre médian (les 9 valeurs sont triées et la valeur
+ *     médiane est retournée).
  * \param NO,N,NE,O,CO,E,SO,S,SE: les valeurs des 9 points
- *  concernÃ©s pour le calcul de la convolution (cette derniÃ¨re est
- *  formellement une combinaison linÃ©aire de ces 9 valeurs).
+ *  concernés pour le calcul de la convolution (cette dernière est
+ *  formellement une combinaison linéaire de ces 9 valeurs).
  * \return la valeur de convolution.
  */
 
@@ -238,7 +235,7 @@ unsigned char filtre( filtre_t choix,
 }
 
 /**
- * Convolution d'une image par un filtre prÃ©dÃ©fini
+ * Convolution d'une image par un filtre prédéfini
  * \param choix choix du filtre (voir la fonction filtre())
  * \param tab pointeur vers l'image
  * \param nbl, nbc dimension de l'image
@@ -249,7 +246,7 @@ unsigned char filtre( filtre_t choix,
 int convolution( filtre_t choix, unsigned char tab[],int nbl,int nbc) {
   int i,j;
   unsigned char *tmp;
-
+  
   /* Allocation memoire du tampon intermediaire : */
   tmp = (unsigned char*) malloc(sizeof(unsigned char) *nbc*nbl);
   if (tmp == NULL) {
@@ -258,23 +255,23 @@ int convolution( filtre_t choix, unsigned char tab[],int nbl,int nbc) {
   }
   
   /* on laisse tomber les bords */
-    for(i=1 ; i<nbl - 1 ; i++)
+    for(i=1 ; i<nbl-1 ; i++)
     {
-      for(j=1 ; j<nbc - 1 ; j++){
-        tmp[i * nbc + j] = filtre(
+      for(j=1 ; j<nbc-1 ; j++){
+        tmp[i*nbc+j] = filtre(
 			    choix,
-			    tab[(i+1) * nbc+j-1],tab[(i+1)*nbc+j],tab[(i+1)*nbc+j+1],
-			    tab[(i  ) * nbc+j-1],tab[(i)*nbc+j],tab[(i)*nbc+j+1],
-			    tab[(i-1) * nbc+j-1],tab[(i-1)*nbc+j],tab[(i-1)*nbc+j+1]);
+			    tab[(i+1)*nbc+j-1],tab[(i+1)*nbc+j],tab[(i+1)*nbc+j+1],
+			    tab[(i  )*nbc+j-1],tab[(i)*nbc+j],tab[(i)*nbc+j+1],
+			    tab[(i-1)*nbc+j-1],tab[(i-1)*nbc+j],tab[(i-1)*nbc+j+1]);
       } /* for j */
     } /* for i */
   
   /* Recopie de l'image apres traitement dans l'image initiale,
    * On remarquera que la premiere, la derniere ligne, la premiere
-   * et la derniere colonne ne sont pas copiÃ©es (ce qui force a faire
+   * et la derniere colonne ne sont pas copiées (ce qui force a faire
    * la copie ligne par ligne). */
   for( i=1; i<nbl-1; i++){
-    memcpy( tab + nbc * i + 1, tmp + nbc * i + 1, (nbc - 2) * sizeof(unsigned char));
+    memcpy( tab+nbc*i+1, tmp+nbc*i+1, (nbc-2)*sizeof(unsigned char));
   } /* for i */
   
   /* Liberation memoire du tampon intermediaire : */
@@ -298,8 +295,6 @@ int main(int argc, char *argv[]) {
   Raster r;
   int    w, h;	/* nombre de lignes et de colonnes de l'image */
 
-  int w_scatter;
-
   /* Variables liees au traitement de l'image */
   int 	 filtre;		/* numero du filtre */
   int 	 nbiter;		/* nombre d'iterations */
@@ -309,128 +304,40 @@ int main(int argc, char *argv[]) {
 
   /* Variables de boucle */
   int 	i,j;
-  /* Rang du processus*/
-  int rank;
-  /* Nombre de processus*/
-  int p;
-  /* Hauteur de l'image locale*/
-  int h_local;
-  int h_loc;
-  /* */
-  unsigned char *ima_loc;
-  
+
   if (argc != 4) {
     fprintf( stderr, usage, argv[0]);
     return 1;
   }
       
-  /* Saisie des paramÃ¨tres */
+  /* Saisie des paramètres */
   filtre = atoi(argv[2]);
   nbiter = atoi(argv[3]);
-  
-  /**** INIT MPI  ****/
-  MPI_Init(&argc, &argv); /* starts MPI */
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank); /* get current process id */
-  MPI_Comm_size(MPI_COMM_WORLD, &p);
-  if (rank == MAITRE) {
-    /* Lecture du fichier Raster */
-    lire_rasterfile( argv[1], &r);
-    h = r.file.ras_height;
-    w = r.file.ras_width;
         
-    if (h % p != 0) {
-      printf("Erreur : la hauteur n'est pas divisible pas le nombre de processus\n");
-      MPI_Finalize();
-      return 0;
-    }
-  }
-  MPI_Bcast(&w, 1, MPI_INT, MAITRE, MPI_COMM_WORLD);
-  MPI_Bcast(&h, 1, MPI_INT, MAITRE, MPI_COMM_WORLD);
-
-  
-    /* Calcul de la hauteur du bloc Ã  envoyer en fonction du rank*/
-    h_local = h / p;
-
-    if ((rank == 0) || (rank == p - 1)) {
-      h_loc = h_local + 1;
-    } else if ((rank > 0) && (rank < p-1)) {
-      h_loc = h_local + 2;
-    }
-
-    /* Allocation dynamique de chaque bloc local*/
-    ima_loc = (unsigned char*) malloc(w * h_loc * sizeof(unsigned char));
-    if(ima_loc == NULL) {
-      fprintf( stderr, "Erreur allocation mÃ©moire du tableau \n");
-      return 0;
-    }
-  
-  if (rank > 0) {
-    w_scatter = w;
-  } else {
-    w_scatter = 0;
-  }
-
-  MPI_Scatter(
-    r.data,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    ima_loc + w_scatter,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    MAITRE, 
-    MPI_COMM_WORLD
-  );
-  
-
+  /* Lecture du fichier Raster */
+  lire_rasterfile( argv[1], &r);
+  h = r.file.ras_height;
+  w = r.file.ras_width;
+    
   /* debut du chronometrage */
-  debut = my_gettimeofday();    
-  MPI_Status status;        
+  debut = my_gettimeofday();            
 
   /* La convolution a proprement parler */
   for(i=0 ; i < nbiter ; i++){
-    if (rank > 0) {
-      MPI_Send(ima_loc + w, w, MPI_UNSIGNED_CHAR, rank - 1, TAG_DATA, MPI_COMM_WORLD);
-      MPI_Recv(ima_loc, w, MPI_UNSIGNED_CHAR, rank - 1, TAG_DATA, MPI_COMM_WORLD, &status);
-    }
-    if (rank < p - 1) {
-      MPI_Recv(ima_loc + (h_loc - 1) * w, w, MPI_UNSIGNED_CHAR, rank + 1, TAG_DATA, MPI_COMM_WORLD, &status);
-      MPI_Send(ima_loc + (h_loc - 2) * w , w, MPI_UNSIGNED_CHAR, rank + 1, TAG_DATA, MPI_COMM_WORLD);
-    }
-    convolution(filtre, ima_loc, h_loc, w);
+    convolution( filtre, r.data, h, w);
   } /* for i */
 
-  MPI_Gather(
-    ima_loc + w_scatter,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    r.data,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    MAITRE,
-    MPI_COMM_WORLD
-  );
   /* fin du chronometrage */
   fin = my_gettimeofday();
-
-  if (rank != MAITRE) {
-
-    fprintf(stderr, "Fin du processus : %d || Temps de calcul total : %g sec\n", rank + 1, fin - debut);
-  }
-
-  if (rank == MAITRE) {
+  printf("Temps total de calcul : %g seconde(s) \n", fin - debut);
     
-    printf("Temps total de calcul : %g seconde(s) \n", fin - debut);
-      
-      /* Sauvegarde du fichier Raster */
-    { 
-      char nom_sortie[100] = "";
-      sprintf(nom_sortie, "output/post-convolution_filtre%d_nbIter%d.ras", filtre, nbiter);
-      sauve_rasterfile(nom_sortie, &r);
-    }
+    /* Sauvegarde du fichier Raster */
+  { 
+    char nom_sortie[100] = "";
+    sprintf(nom_sortie, "post-convolution_filtre%d_nbIter%d.ras", filtre, nbiter);
+    sauve_rasterfile(nom_sortie, &r);
   }
 
-  free(ima_loc);
-  MPI_Finalize();
   return 0;
 }
 

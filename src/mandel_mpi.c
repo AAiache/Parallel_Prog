@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
 
     /* Allocation memoire du tableau resultat */  
     pima = ima = (unsigned char *)malloc(w * h * sizeof(unsigned char));
-    MPI_Finalizeif( ima == NULL) {
+    if( ima == NULL) {
       fprintf( stderr, "Erreur allocation mémoire du tableau \n");
       return 0;
     }
@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
     fprintf( stdout, "%g\n", fin - debut);
 
     /* Sauvegarde de la grille dans le fichier resultat "mandel.ras" */
-    sauver_rasterfile( "../output/mandel.ras", w, h, ima);
+    sauver_rasterfile( "output/mandel.ras", w, h, ima);
 
   } else {
 

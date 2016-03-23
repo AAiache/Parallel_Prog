@@ -5,15 +5,12 @@
  * Calcul de convolution sur une image.
  */
 
-#define TAG_DATA 2
-#define MAITRE 0
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>   /* pour le rint */
 #include <string.h> /* pour le memcpy */
 #include <time.h>   /* chronometrage */
-#include <mpi.h>
 
 #include "rasterfile.h"
 
@@ -249,7 +246,7 @@ unsigned char filtre( filtre_t choix,
 int convolution( filtre_t choix, unsigned char tab[],int nbl,int nbc) {
   int i,j;
   unsigned char *tmp;
-
+  
   /* Allocation memoire du tampon intermediaire : */
   tmp = (unsigned char*) malloc(sizeof(unsigned char) *nbc*nbl);
   if (tmp == NULL) {
@@ -257,24 +254,28 @@ int convolution( filtre_t choix, unsigned char tab[],int nbl,int nbc) {
     return 1;
   }
   
-  /* on laisse tomber les bords */
-    for(i=1 ; i<nbl - 1 ; i++)
-    {
-      for(j=1 ; j<nbc - 1 ; j++){
-        tmp[i * nbc + j] = filtre(
-			    choix,
-			    tab[(i+1) * nbc+j-1],tab[(i+1)*nbc+j],tab[(i+1)*nbc+j+1],
-			    tab[(i  ) * nbc+j-1],tab[(i)*nbc+j],tab[(i)*nbc+j+1],
-			    tab[(i-1) * nbc+j-1],tab[(i-1)*nbc+j],tab[(i-1)*nbc+j+1]);
-      } /* for j */
-    } /* for i */
+  /* on calcul pas les bords */
+  #pragma omp parallel
+  {
+  	#pragma omp for private (j) schedule(runtime) 
+      for(i=1 ; i<nbl-1 ; i++)
+      {
+        for(j=1 ; j<nbc-1 ; j++){
+          tmp[i*nbc+j] = filtre(
+  			    choix,
+  			    tab[(i+1)*nbc+j-1],tab[(i+1)*nbc+j],tab[(i+1)*nbc+j+1],
+  			    tab[(i  )*nbc+j-1],tab[(i)*nbc+j],tab[(i)*nbc+j+1],
+  			    tab[(i-1)*nbc+j-1],tab[(i-1)*nbc+j],tab[(i-1)*nbc+j+1]);
+        } /* for j */
+      } /* for i */
+  }
   
   /* Recopie de l'image apres traitement dans l'image initiale,
    * On remarquera que la premiere, la derniere ligne, la premiere
    * et la derniere colonne ne sont pas copiées (ce qui force a faire
    * la copie ligne par ligne). */
   for( i=1; i<nbl-1; i++){
-    memcpy( tab + nbc * i + 1, tmp + nbc * i + 1, (nbc - 2) * sizeof(unsigned char));
+    memcpy( tab+nbc*i+1, tmp+nbc*i+1, (nbc-2)*sizeof(unsigned char));
   } /* for i */
   
   /* Liberation memoire du tampon intermediaire : */
@@ -298,8 +299,6 @@ int main(int argc, char *argv[]) {
   Raster r;
   int    w, h;	/* nombre de lignes et de colonnes de l'image */
 
-  int w_scatter;
-
   /* Variables liees au traitement de l'image */
   int 	 filtre;		/* numero du filtre */
   int 	 nbiter;		/* nombre d'iterations */
@@ -309,16 +308,7 @@ int main(int argc, char *argv[]) {
 
   /* Variables de boucle */
   int 	i,j;
-  /* Rang du processus*/
-  int rank;
-  /* Nombre de processus*/
-  int p;
-  /* Hauteur de l'image locale*/
-  int h_local;
-  int h_loc;
-  /* */
-  unsigned char *ima_loc;
-  
+
   if (argc != 4) {
     fprintf( stderr, usage, argv[0]);
     return 1;
@@ -327,110 +317,31 @@ int main(int argc, char *argv[]) {
   /* Saisie des paramètres */
   filtre = atoi(argv[2]);
   nbiter = atoi(argv[3]);
-  
-  /**** INIT MPI  ****/
-  MPI_Init(&argc, &argv); /* starts MPI */
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank); /* get current process id */
-  MPI_Comm_size(MPI_COMM_WORLD, &p);
-  if (rank == MAITRE) {
-    /* Lecture du fichier Raster */
-    lire_rasterfile( argv[1], &r);
-    h = r.file.ras_height;
-    w = r.file.ras_width;
         
-    if (h % p != 0) {
-      printf("Erreur : la hauteur n'est pas divisible pas le nombre de processus\n");
-      MPI_Finalize();
-      return 0;
-    }
-  }
-  MPI_Bcast(&w, 1, MPI_INT, MAITRE, MPI_COMM_WORLD);
-  MPI_Bcast(&h, 1, MPI_INT, MAITRE, MPI_COMM_WORLD);
-
-  
-    /* Calcul de la hauteur du bloc à envoyer en fonction du rank*/
-    h_local = h / p;
-
-    if ((rank == 0) || (rank == p - 1)) {
-      h_loc = h_local + 1;
-    } else if ((rank > 0) && (rank < p-1)) {
-      h_loc = h_local + 2;
-    }
-
-    /* Allocation dynamique de chaque bloc local*/
-    ima_loc = (unsigned char*) malloc(w * h_loc * sizeof(unsigned char));
-    if(ima_loc == NULL) {
-      fprintf( stderr, "Erreur allocation mémoire du tableau \n");
-      return 0;
-    }
-  
-  if (rank > 0) {
-    w_scatter = w;
-  } else {
-    w_scatter = 0;
-  }
-
-  MPI_Scatter(
-    r.data,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    ima_loc + w_scatter,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    MAITRE, 
-    MPI_COMM_WORLD
-  );
-  
-
+  /* Lecture du fichier Raster */
+  lire_rasterfile( argv[1], &r);
+  h = r.file.ras_height;
+  w = r.file.ras_width;
+    
   /* debut du chronometrage */
-  debut = my_gettimeofday();    
-  MPI_Status status;        
+  debut = my_gettimeofday();            
 
   /* La convolution a proprement parler */
   for(i=0 ; i < nbiter ; i++){
-    if (rank > 0) {
-      MPI_Send(ima_loc + w, w, MPI_UNSIGNED_CHAR, rank - 1, TAG_DATA, MPI_COMM_WORLD);
-      MPI_Recv(ima_loc, w, MPI_UNSIGNED_CHAR, rank - 1, TAG_DATA, MPI_COMM_WORLD, &status);
-    }
-    if (rank < p - 1) {
-      MPI_Recv(ima_loc + (h_loc - 1) * w, w, MPI_UNSIGNED_CHAR, rank + 1, TAG_DATA, MPI_COMM_WORLD, &status);
-      MPI_Send(ima_loc + (h_loc - 2) * w , w, MPI_UNSIGNED_CHAR, rank + 1, TAG_DATA, MPI_COMM_WORLD);
-    }
-    convolution(filtre, ima_loc, h_loc, w);
+    convolution( filtre, r.data, h, w);
   } /* for i */
 
-  MPI_Gather(
-    ima_loc + w_scatter,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    r.data,
-    w * h_local,
-    MPI_UNSIGNED_CHAR,
-    MAITRE,
-    MPI_COMM_WORLD
-  );
   /* fin du chronometrage */
   fin = my_gettimeofday();
-
-  if (rank != MAITRE) {
-
-    fprintf(stderr, "Fin du processus : %d || Temps de calcul total : %g sec\n", rank + 1, fin - debut);
-  }
-
-  if (rank == MAITRE) {
+  printf("Temps total de calcul : %g seconde(s) \n", fin - debut);
     
-    printf("Temps total de calcul : %g seconde(s) \n", fin - debut);
-      
-      /* Sauvegarde du fichier Raster */
-    { 
-      char nom_sortie[100] = "";
-      sprintf(nom_sortie, "output/post-convolution_filtre%d_nbIter%d.ras", filtre, nbiter);
-      sauve_rasterfile(nom_sortie, &r);
-    }
+    /* Sauvegarde du fichier Raster */
+  { 
+    char nom_sortie[100] = "";
+    sprintf(nom_sortie, "post-convolution_filtre%d_nbIter%d.ras", filtre, nbiter);
+    sauve_rasterfile(nom_sortie, &r);
   }
 
-  free(ima_loc);
-  MPI_Finalize();
   return 0;
 }
 

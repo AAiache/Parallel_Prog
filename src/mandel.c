@@ -279,7 +279,7 @@ int main(int argc, char *argv[]) {
   fprintf( stdout, "%g\n", fin - debut);
 
   /* Sauvegarde de la grille dans le fichier resultat "mandel.ras" */
-  sauver_rasterfile( "mandel.ras", w, h, ima);
+  sauver_rasterfile( "output/mandel.ras", w, h, ima);
   
   return 0;
 }
