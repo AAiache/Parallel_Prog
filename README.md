@@ -8,7 +8,7 @@ les codes sources sont dans le répertoire src :
 - convol_omp.c : code parallèle OpenMP
 
 - mandel.c : code séquentiel Mandelbrot
-- mandel_mpi.c : code parallèle OpenMPI avec distribution de charge statique
-- mandel_mpi_d.c : code parallèle OpenMPI avec distribution de charge dynamique
-- mandel_omp.c : code parallèle OpenMP 
+- mandel_mpi.c : code parallèle Mandelbrot OpenMPI avec distribution de charge statique
+- mandel_mpi_d.c : code parallèle Mandelbrot OpenMPI avec distribution de charge dynamique
+- mandel_omp.c : code parallèle Mandelbrot OpenMP 
 
